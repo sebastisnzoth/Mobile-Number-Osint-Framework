@@ -1,0 +1,16 @@
+{
+  "name": "mobile-number-osint-framework",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DEVOTEE INDIA - Mobile Number OSINT Framework (static site)",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "tools:install": "node scripts/install-tools.mjs",
+    "tools:check": "node scripts/check-tools.mjs",
+    "start": "node server.mjs",
+    "dev": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

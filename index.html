@@ -72,13 +72,74 @@
             <div class="search-bar">
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="Search any OSINT technique, tool, or method...">
-                <span class="search-hint">⌘K</span>
+                <span class="search-hint">⌘K / Ctrl+K</span>
+                <button type="button" id="notesBtn" class="notes-btn" title="Investigation notes (saved in this browser)">
+                    <i class="fas fa-sticky-note"></i> <span class="notes-label">Notes</span>
+                    <span id="notesBadge" class="notes-badge hidden">●</span>
+                </button>
+            </div>
+
+            <!-- INVESTIGATION NOTES (localStorage) -->
+            <div id="notesPanel" class="notes-panel hidden">
+                <div class="notes-head">
+                    <strong><i class="fas fa-sticky-note"></i> Investigation notes</strong>
+                    <span>Saved only in this browser · nothing is uploaded</span>
+                </div>
+                <textarea id="notesInput" spellcheck="false" placeholder="Write down findings, numbers, usernames, links... Everything is saved automatically as you type."></textarea>
+                <div class="notes-actions">
+                    <span id="notesStatus">Autosave on</span>
+                    <div class="notes-buttons">
+                        <button type="button" id="exportNotesBtn"><i class="fas fa-download"></i> Download .txt</button>
+                        <button type="button" id="clearNotesBtn"><i class="fas fa-trash"></i> Clear</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NUMBER LOOKUP (offline, local API) -->
+            <div class="lookup-panel">
+                <div class="lookup-head">
+                    <strong><i class="fas fa-phone"></i> Number lookup <span class="lookup-tag">OFFLINE</span></strong>
+                    <span>Metadata from the number prefix only · no identity lookup · nothing leaves this machine</span>
+                </div>
+                <form id="lookupForm" class="lookup-form">
+                    <i class="fas fa-phone"></i>
+                    <input type="text" id="lookupInput" placeholder="Phone number, e.g. +55 48 99999-1234" autocomplete="off">
+                    <select id="lookupRegion" aria-label="Region hint (optional)">
+                        <option value="">Auto</option>
+                        <option value="BR">BR</option>
+                        <option value="US">US</option>
+                        <option value="IN">IN</option>
+                        <option value="GB">GB</option>
+                        <option value="PT">PT</option>
+                        <option value="ES">ES</option>
+                        <option value="AR">AR</option>
+                        <option value="MX">MX</option>
+                        <option value="DE">DE</option>
+                        <option value="FR">FR</option>
+                        <option value="IT">IT</option>
+                        <option value="AU">AU</option>
+                        <option value="JP">JP</option>
+                        <option value="RU">RU</option>
+                    </select>
+                    <button type="submit" id="lookupBtn"><i class="fas fa-search"></i> Analyze</button>
+                </form>
+                <label class="consent-row">
+                    <input type="checkbox" id="lookupConsent">
+                    <span>I confirm I have consent / a legal basis to analyse this number (research, authorised security work or education).</span>
+                </label>
+                <div id="lookupResult" class="lookup-result hidden"></div>
+                <div class="tools-status">
+                    <span class="tools-status-label"><i class="fas fa-toolbox"></i> Local toolchain</span>
+                    <span id="toolsStatus">Checking…</span>
+                    <button type="button" id="refreshToolsBtn" title="Refresh toolchain status"><i class="fas fa-sync"></i></button>
+                </div>
             </div>
 
             <div id="osintTree" class="osint-tree"></div>
 
             <div class="footer-note">
                 <i class="fas fa-mouse-pointer"></i> Click on any tool name to copy its link
+                · <i class="fas fa-sticky-note"></i> Your notes stay in this browser
             </div>
         </div>
     </div>

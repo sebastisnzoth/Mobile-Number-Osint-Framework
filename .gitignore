@@ -1,0 +1,12 @@
+# Dependencies / generated artifacts
+node_modules/
+npm-debug.log*
+.DS_Store
+
+# Optional local OSINT toolchain (installed by npm run tools:install)
+tools/.venv/
+tools/.cache/
+tools/bin/
+tools/env.sh
+__pycache__/
+*.pyc

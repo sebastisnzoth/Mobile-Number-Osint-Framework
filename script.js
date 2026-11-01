@@ -1,6 +1,6 @@
 // DEVOTEE INDIA OSINT Framework
 // Nikul Suthar & Sharoop Parihar
-// COMPLETE 52+ METHODS - As per PDF
+// COMPLETE 78 METHODS - 9 categories
 
 const techniquesData = {
     categories: [
@@ -128,7 +128,7 @@ let totalMethods = 0;
 for (let i = 1; i <= 9; i++) {
     totalMethods += techniquesData.details[i]?.length || 0;
 }
-console.log("Total Methods:", totalMethods); // Should show 52+
+console.log("Total Methods:", totalMethods); // Should show 78
 
 // COPY FUNCTION
 function copyToClipboard(text, toolName) {
@@ -289,6 +289,209 @@ function showToast(msg) {
     setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
+// Keyboard shortcut: focus the search field (Cmd/Ctrl + K)
+function setupKeyboardShortcuts() {
+    const btn = document.getElementById('startBtn');
+    const investigation = document.getElementById('investigationArea');
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const panel = document.getElementById('notesPanel');
+            const notesBtn = document.getElementById('notesBtn');
+            if (panel && !panel.classList.contains('hidden')) {
+                panel.classList.add('hidden');
+                if (notesBtn) notesBtn.classList.remove('active');
+            }
+        }
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+            e.preventDefault();
+            const focusSearch = () => {
+                const input = document.getElementById('searchInput');
+                if (input) { input.focus(); input.select(); }
+            };
+            if (investigation.classList.contains('hidden')) {
+                btn.click();
+                setTimeout(focusSearch, 450);
+            } else {
+                focusSearch();
+            }
+        }
+    });
+}
+
+// HTML escaping helper (never inject API data as raw markup)
+function escapeHtml(value) {
+    return String(value === null || value === undefined || value === '' ? '—' : value)
+        .replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Toolchain status panel
+async function loadToolsStatus() {
+    const target = document.getElementById('toolsStatus');
+    if (!target) return;
+    target.innerHTML = '<span class="tool-chip">Checking…</span>';
+    try {
+        const res = await fetch('/api/tools');
+        const data = await res.json();
+        if (!data.installed) {
+            target.innerHTML = '<span class="tool-chip missing">Not installed — run npm run tools:install</span>';
+            return;
+        }
+        const chips = (data.tools || []).map(t => {
+            const cls = !t.available ? 'missing' : (t.official ? 'ok' : 'fallback');
+            const label = t.name + (t.official ? '' : ' (offline fallback)');
+            return `<span class="tool-chip ${cls}">${escapeHtml(label)}</span>`;
+        });
+        if ((data.skippedOptional || []).length) {
+            chips.push(`<span class="tool-chip fallback">${data.skippedOptional.length} optional item(s) unavailable</span>`);
+        }
+        target.innerHTML = chips.join('');
+    } catch (err) {
+        target.innerHTML = `<span class="tool-chip missing">API unreachable: ${escapeHtml(err.message || err)}</span>`;
+    }
+}
+
+// Offline number lookup (local /api/lookup)
+function setupLookup() {
+    const form = document.getElementById('lookupForm');
+    const input = document.getElementById('lookupInput');
+    const region = document.getElementById('lookupRegion');
+    const consent = document.getElementById('lookupConsent');
+    const result = document.getElementById('lookupResult');
+    const btn = document.getElementById('lookupBtn');
+    if (!form || !result) return;
+
+    const show = (html) => { result.innerHTML = html; result.classList.remove('hidden'); };
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const number = input.value.trim();
+        if (!number) {
+            show('<div class="lookup-error">Enter a phone number to analyse.</div>');
+            return;
+        }
+        if (!consent.checked) {
+            show('<div class="lookup-error">Please confirm you have consent / a legal basis before analysing a number.</div>');
+            return;
+        }
+        btn.disabled = true;
+        show('<div class="lookup-note">Analysing locally…</div>');
+        try {
+            const params = new URLSearchParams({ number, consent: 'true' });
+            if (region.value) params.set('region', region.value);
+            const res = await fetch(`/api/lookup?${params.toString()}`);
+            const data = await res.json();
+            if (!res.ok) {
+                show(`<div class="lookup-error">${escapeHtml(data.error || 'Lookup failed')}</div>`);
+                return;
+            }
+            const items = [
+                ['E.164', data.e164],
+                ['Region', data.region],
+                ['Country / area', data.country_or_area],
+                ['Carrier', data.carrier],
+                ['Line type', data.line_type],
+                ['Calling code', data.country_code ? '+' + data.country_code : null],
+                ['Valid number', data.is_valid === null || data.is_valid === undefined ? 'unknown' : String(data.is_valid)],
+                ['Timezones', (data.timezones || []).join(', ')],
+                ['International format', data.international]
+            ];
+            const grid = `<div class="lookup-grid">${items.map(([k, v]) =>
+                `<div class="lookup-item"><small>${escapeHtml(k)}</small><span>${escapeHtml(v)}</span></div>`).join('')}</div>`;
+            const providerNote = (data.providers || []).filter(p => p.configured)
+                .map(p => `<div class="lookup-warn">External provider ${escapeHtml(p.name)}: ${escapeHtml(p.status)}</div>`).join('');
+            show(`${grid}
+                <div class="lookup-note"><i class="fas fa-lock"></i> ${escapeHtml(data.disclaimer || '')}<br>Source: ${escapeHtml(data.source)}</div>
+                ${providerNote}`);
+        } catch (err) {
+            show(`<div class="lookup-error">Could not reach the local API: ${escapeHtml(err.message || err)}</div>`);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    const refreshBtn = document.getElementById('refreshToolsBtn');
+    if (refreshBtn) refreshBtn.addEventListener('click', loadToolsStatus);
+    loadToolsStatus();
+}
+
+// Investigation notes (localStorage)
+const NOTES_KEY = 'devoteeIndia.osintNotes';
+
+function setupNotes() {
+    const btn = document.getElementById('notesBtn');
+    const panel = document.getElementById('notesPanel');
+    const input = document.getElementById('notesInput');
+    const badge = document.getElementById('notesBadge');
+    const status = document.getElementById('notesStatus');
+    const clearBtn = document.getElementById('clearNotesBtn');
+    const exportBtn = document.getElementById('exportNotesBtn');
+    if (!btn || !panel || !input) return;
+
+    const storage = {
+        get() {
+            try { return window.localStorage.getItem(NOTES_KEY) || ''; }
+            catch (err) { return ''; }
+        },
+        set(value) {
+            try {
+                if (value) window.localStorage.setItem(NOTES_KEY, value);
+                else window.localStorage.removeItem(NOTES_KEY);
+                return true;
+            } catch (err) { return false; }
+        }
+    };
+
+    input.value = storage.get();
+    const refreshBadge = () => {
+        if (badge) badge.classList.toggle('hidden', input.value.trim() === '');
+    };
+    refreshBadge();
+
+    btn.addEventListener('click', () => {
+        const opening = panel.classList.contains('hidden');
+        panel.classList.toggle('hidden', !opening);
+        btn.classList.toggle('active', opening);
+        if (opening) input.focus();
+    });
+
+    let saveTimer;
+    input.addEventListener('input', () => {
+        refreshBadge();
+        if (status) status.textContent = 'Saving...';
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+            const saved = storage.set(input.value);
+            if (status) {
+                status.textContent = saved
+                    ? `Saved locally · ${new Date().toLocaleTimeString()}`
+                    : 'Could not save (browser storage blocked)';
+            }
+        }, 300);
+    });
+
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+        if (!window.confirm('Delete all your investigation notes?')) return;
+        input.value = '';
+        storage.set('');
+        refreshBadge();
+        if (status) status.textContent = 'Notes cleared';
+        input.focus();
+    });
+
+    if (exportBtn) exportBtn.addEventListener('click', () => {
+        const blob = new Blob([input.value], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `osint-notes-${new Date().toISOString().slice(0, 10)}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        if (status) status.textContent = 'Notes downloaded';
+    });
+}
+
 // Investigate Button
 function setupInvestigate() {
     const btn = document.getElementById('startBtn');
@@ -310,5 +513,8 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTree();
     setupSearch();
     setupInvestigate();
+    setupKeyboardShortcuts();
+    setupNotes();
+    setupLookup();
     console.log(`✅ DEVOTEE INDIA OSINT Framework Loaded with ${totalMethods} Methods`);
 });
